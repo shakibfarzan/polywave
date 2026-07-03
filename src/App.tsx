@@ -107,7 +107,7 @@ export default function App() {
         </Tabs>
 
         <footer className="pt-2 text-center text-xs text-muted-foreground">
-          Polywave · installable PWA · works offline after first load
+          Polywave · Web App for music learners
         </footer>
       </div>
     </div>
