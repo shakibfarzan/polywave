@@ -11,7 +11,7 @@ This doc is written to be handed directly to Claude Code as the build brief.
 ## 2. Tech stack and one deliberate departure
 
 | Layer | Choice |
-|---|---|
+| --- | --- |
 | Framework | **Vite + React 19 + TypeScript** |
 | Styling | Tailwind CSS v4 |
 | Components | shadcn/ui |
@@ -51,6 +51,7 @@ Compute `KeyInfo` from `(tonic, mode)` using interval patterns per mode rather t
 ## 4. Feature scope (build in this order)
 
 ### Phase 1 — Foundation (MVP skeleton)
+
 - Vite + TS + Tailwind v4 + shadcn/ui scaffolded, PWA plugin configured (manifest, icons, offline precache)
 - `lib/theory.ts`: typed key/mode generator described above
 - `lib/audio.ts`: Tone.js wrapper — `PolySynth` by default, lazy-initialized on first user gesture (browser autoplay policy)
@@ -58,23 +59,27 @@ Compute `KeyInfo` from `(tonic, mode)` using interval patterns per mode rather t
 - Clicking a note plays it
 
 ### Phase 2 — Beginner tools
+
 - "Play scale" — ascending/descending playback of the active key, current note highlighted as it plays
 - Roman numeral / scale-degree overlay toggle
 - Relative major/minor switch with a smooth highlight transition
 - Key-signature flashcard quiz (signature → key, and key → accidental count), scored
 
 ### Phase 3 — Intermediate tools
+
 - Inner chord-wheel ring: diatonic triads/7ths for the active key, click to hear the chord
 - Progression builder: click notes/chords in sequence, connecting lines drawn across the circle, play back the built sequence
 - "Neighbor keys" highlight (modulation targets — one accidental away)
 - Metronome + practice timer
 
 ### Phase 4 — Advanced tools
+
 - Web MIDI input: detect a played chord, highlight matching key(s)/degree live (note: Safari has no Web MIDI support — treat as progressive enhancement, not a hard requirement)
 - Secondary dominants / modal interchange overlay
 - Export a built progression as a MIDI file
 
 ### Phase 5 — Polish
+
 - Practice stats (streaks, accuracy) persisted via Zustand `persist` (localStorage; IndexedDB if data grows)
 - Settings: theme (light/dark), sharps-vs-flats notation, instrument/synth choice
 - Full keyboard navigation + ARIA labels on every circle segment (currently zero accessibility in the old app)
@@ -84,7 +89,7 @@ Compute `KeyInfo` from `(tonic, mode)` using interval patterns per mode rather t
 ## 5. Component breakdown (shadcn primitives to use)
 
 | Component | shadcn primitives |
-|---|---|
+| --- | --- |
 | `KeySelector` | `Command` (searchable combobox) instead of the old plain dropdown |
 | `CircleOfFifths` | custom SVG/positioned-div component, no shadcn equivalent |
 | `NoteSegment` | `Tooltip` for accidental info on hover/focus |
@@ -109,7 +114,7 @@ No routing needed for v1 — keep it a single view with a `Tabs` component switc
 
 ## 7. Folder structure
 
-```
+```text
 src/
   components/
     ui/              shadcn-generated, do not hand-edit
