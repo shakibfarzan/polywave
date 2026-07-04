@@ -1,4 +1,4 @@
-import { Play, Plus, Square, Trash2, X } from "lucide-react";
+import { Download, Play, Plus, Square, Trash2, X } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
 import { usePolywaveStore } from "@/lib/store";
@@ -16,6 +16,7 @@ export function ProgressionBuilder() {
     clearProgression,
     playProgression,
     stopProgression,
+    exportProgressionMidi,
   } = usePolywaveStore(
     useShallow((s) => ({
       progression: s.progression,
@@ -26,6 +27,7 @@ export function ProgressionBuilder() {
       clearProgression: s.clearProgression,
       playProgression: s.playProgression,
       stopProgression: s.stopProgression,
+      exportProgressionMidi: s.exportProgressionMidi,
     })),
   );
 
@@ -60,6 +62,16 @@ export function ProgressionBuilder() {
               Play
             </>
           )}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={exportProgressionMidi}
+          disabled={empty}
+          aria-label="Export progression as a MIDI file"
+        >
+          <Download />
+          MIDI
         </Button>
         <Button
           variant="ghost"

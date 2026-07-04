@@ -10,6 +10,7 @@ import { OverlayToggles } from "@/components/circle/OverlayToggles";
 import { PlaybackControls } from "@/components/circle/PlaybackControls";
 import { RelativeSwitch } from "@/components/circle/RelativeSwitch";
 import { ProgressionBuilder } from "@/components/progression/ProgressionBuilder";
+import { MidiStatus } from "@/components/midi/MidiStatus";
 import { Metronome } from "@/components/practice/Metronome";
 import { PracticeTimer } from "@/components/practice/PracticeTimer";
 import { QuizMode } from "@/components/quiz/QuizMode";
@@ -60,6 +61,7 @@ export default function App() {
             <OverlayToggles />
             <CircleTools />
             <CircleOfFifths />
+            <MidiStatus />
             <p className="max-w-md text-center text-sm text-muted-foreground">
               Click any note to hear it. Tab to the circle and use the arrow
               keys to move between notes.

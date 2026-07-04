@@ -8,14 +8,24 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
+  detectChord,
+  getChordMatches,
   getKeyInfo,
   getRelative,
   practicalKeys,
   signatureCount,
+  type ChordKeyMatch,
+  type DetectedChord,
   type KeyInfo,
   type KeySignature,
   type Mode,
 } from "./theory";
+import {
+  connectMidi as midiConnect,
+  disconnectMidi as midiDisconnect,
+  isMidiSupported,
+} from "./midi";
+import { encodeProgressionToMidi, downloadMidi } from "./midiFile";
 import {
   ensureAudio,
   playNote,
@@ -31,6 +41,14 @@ import {
 export type Theme = "light" | "dark";
 export type QuizType = "sigToKey" | "keyToCount";
 export type OverlayMode = "none" | "degrees" | "roman";
+/** What the inner chord ring displays. */
+export type RingMode = "off" | "diatonic" | "secondary" | "borrowed";
+export type MidiStatus =
+  | "unsupported"
+  | "idle"
+  | "connecting"
+  | "connected"
+  | "error";
 
 export interface ProgressionStep {
   id: string;
@@ -60,9 +78,16 @@ interface PolywaveState {
 
   // Overlays
   overlay: OverlayMode;
-  showChordWheel: boolean;
+  ringMode: RingMode;
   chordSevenths: boolean;
   showNeighbors: boolean;
+
+  // MIDI input (Phase 4)
+  midiStatus: MidiStatus;
+  midiDevices: string[];
+  midiNotes: number[];
+  detectedChord: DetectedChord | null;
+  chordMatches: ChordKeyMatch[];
 
   // Playback
   tempo: number;
@@ -89,9 +114,13 @@ interface PolywaveState {
   setKey: (tonic: string, mode: Mode) => void;
   switchRelative: () => void;
   setOverlay: (overlay: OverlayMode) => void;
-  toggleChordWheel: () => void;
+  setRingMode: (mode: RingMode) => void;
   setChordSevenths: (sevenths: boolean) => void;
   toggleNeighbors: () => void;
+  connectMidiInput: () => Promise<void>;
+  disconnectMidiInput: () => void;
+  setMidiNotes: (notes: number[]) => void;
+  exportProgressionMidi: () => void;
   setTempo: (tempo: number) => void;
   playSingleNote: (pitchClass: number) => Promise<void>;
   playChordNotes: (pitchClasses: number[]) => Promise<void>;
@@ -228,9 +257,15 @@ export const usePolywaveStore = create<PolywaveState>()(
       keyInfo: getKeyInfo(DEFAULT_TONIC, DEFAULT_MODE),
 
       overlay: "none",
-      showChordWheel: false,
+      ringMode: "off",
       chordSevenths: false,
       showNeighbors: false,
+
+      midiStatus: isMidiSupported() ? "idle" : "unsupported",
+      midiDevices: [],
+      midiNotes: [],
+      detectedChord: null,
+      chordMatches: [],
 
       tempo: 100,
       isPlaying: false,
@@ -272,12 +307,55 @@ export const usePolywaveStore = create<PolywaveState>()(
 
       setOverlay: (overlay) => set({ overlay }),
 
-      toggleChordWheel: () =>
-        set((s) => ({ showChordWheel: !s.showChordWheel })),
+      setRingMode: (mode) => set({ ringMode: mode }),
 
       setChordSevenths: (sevenths) => set({ chordSevenths: sevenths }),
 
       toggleNeighbors: () => set((s) => ({ showNeighbors: !s.showNeighbors })),
+
+      connectMidiInput: async () => {
+        if (get().midiStatus === "unsupported") return;
+        set({ midiStatus: "connecting" });
+        try {
+          const devices = await midiConnect({
+            onNotesChange: (notes) => get().setMidiNotes(notes),
+            onDevicesChange: (midiDevices) => set({ midiDevices }),
+          });
+          set({ midiStatus: "connected", midiDevices: devices });
+        } catch {
+          set({ midiStatus: "error" });
+        }
+      },
+
+      disconnectMidiInput: () => {
+        midiDisconnect();
+        set({
+          midiStatus: isMidiSupported() ? "idle" : "unsupported",
+          midiDevices: [],
+          midiNotes: [],
+          detectedChord: null,
+          chordMatches: [],
+        });
+      },
+
+      setMidiNotes: (notes) => {
+        const chord = detectChord(notes.map((n) => n % 12));
+        set({
+          midiNotes: notes,
+          detectedChord: chord,
+          chordMatches: chord ? getChordMatches(chord) : [],
+        });
+      },
+
+      exportProgressionMidi: () => {
+        const { progression, tempo } = get();
+        if (progression.length === 0) return;
+        const bytes = encodeProgressionToMidi(
+          progression.map((p) => ({ pitchClasses: p.pitchClasses })),
+          tempo,
+        );
+        downloadMidi(bytes);
+      },
 
       setTempo: (tempo) => {
         setTransportTempo(tempo);
@@ -426,7 +504,7 @@ export const usePolywaveStore = create<PolywaveState>()(
         tonic: s.tonic,
         mode: s.mode,
         overlay: s.overlay,
-        showChordWheel: s.showChordWheel,
+        ringMode: s.ringMode,
         chordSevenths: s.chordSevenths,
         showNeighbors: s.showNeighbors,
         tempo: s.tempo,

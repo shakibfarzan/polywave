@@ -4,6 +4,10 @@ import {
   getRelative,
   getDiatonicChords,
   getNeighborKeys,
+  detectChord,
+  getChordMatches,
+  getSecondaryDominants,
+  getBorrowedChords,
   parseNoteName,
   noteNameToPitchClass,
   practicalKeys,
@@ -178,6 +182,72 @@ describe("neighbor keys", () => {
     const relative = neighbors[2];
     expect(relative.mode).toBe("aeolian");
     expect(relative.circleIndex).toBe(3); // A sits at circle index 3
+  });
+});
+
+describe("chord detection (MIDI input)", () => {
+  it("detects major and minor triads in any inversion", () => {
+    expect(detectChord([0, 4, 7])?.symbol).toBe("C");
+    expect(detectChord([4, 7, 12])?.symbol).toBe("C"); // first inversion, octave dup
+    expect(detectChord([9, 0, 4])?.symbol).toBe("Am");
+  });
+
+  it("detects seventh chords", () => {
+    expect(detectChord([7, 11, 2, 5])?.symbol).toBe("G7");
+    expect(detectChord([0, 4, 7, 11])?.symbol).toBe("Cmaj7");
+    expect(detectChord([11, 2, 5, 9])?.symbol).toBe("Bm7♭5");
+  });
+
+  it("returns null for non-chords", () => {
+    expect(detectChord([0, 1])).toBeNull();
+    expect(detectChord([0, 1, 2])).toBeNull();
+  });
+
+  it("finds the keys where a chord is diatonic", () => {
+    const dm = detectChord([2, 5, 9])!; // D minor
+    const matches = getChordMatches(dm);
+    const byTonic = Object.fromEntries(matches.map((m) => [m.tonic, m.roman]));
+    expect(byTonic["C"]).toBe("ii");
+    expect(byTonic["F"]).toBe("vi");
+    expect(byTonic["B♭"]).toBe("iii");
+    expect(matches).toHaveLength(3);
+  });
+});
+
+describe("secondary dominants", () => {
+  it("C major: V7 of each tonicizable degree", () => {
+    const secondaries = getSecondaryDominants(getKeyInfo("C", "ionian"));
+    expect(secondaries.map((s) => `${s.label}=${s.symbol}`)).toEqual([
+      "V7/ii=A7",
+      "V7/iii=B7",
+      "V7/IV=C7",
+      "V7/V=D7",
+      "V7/vi=E7",
+    ]);
+    const v7ofV = secondaries[3];
+    expect(v7ofV.tones).toEqual(["D", "F♯", "A", "C"]);
+  });
+});
+
+describe("borrowed chords (modal interchange)", () => {
+  it("C major borrows from C minor", () => {
+    const borrowed = getBorrowedChords(getKeyInfo("C", "ionian"));
+    const byLabel = Object.fromEntries(borrowed.map((b) => [b.label, b.symbol]));
+    expect(byLabel["iv"]).toBe("Fm");
+    expect(byLabel["♭VI"]).toBe("A♭");
+    expect(byLabel["♭VII"]).toBe("B♭");
+    expect(byLabel["♭III"]).toBe("E♭");
+    expect(byLabel["i"]).toBe("Cm");
+    // Nothing already diatonic in C major sneaks in
+    expect(Object.values(byLabel)).not.toContain("C");
+    expect(Object.values(byLabel)).not.toContain("F");
+  });
+
+  it("A minor borrows from A major", () => {
+    const borrowed = getBorrowedChords(getKeyInfo("A", "aeolian"));
+    const labels = borrowed.map((b) => b.label);
+    expect(labels).toContain("IV"); // D major borrowed into A minor
+    expect(labels).toContain("I");
   });
 });
 

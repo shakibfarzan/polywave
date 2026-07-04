@@ -29,8 +29,9 @@ export function CircleOfFifths() {
   const {
     keyInfo,
     overlay,
-    showChordWheel,
     showNeighbors,
+    detectedChord,
+    chordMatches,
     currentStepIndex,
     progressionMode,
     progression,
@@ -41,8 +42,9 @@ export function CircleOfFifths() {
     useShallow((s) => ({
       keyInfo: s.keyInfo,
       overlay: s.overlay,
-      showChordWheel: s.showChordWheel,
       showNeighbors: s.showNeighbors,
+      detectedChord: s.detectedChord,
+      chordMatches: s.chordMatches,
       currentStepIndex: s.currentStepIndex,
       progressionMode: s.progressionMode,
       progression: s.progression,
@@ -65,6 +67,19 @@ export function CircleOfFifths() {
   const neighborByCircle = new Map<number, NeighborKey>();
   if (showNeighbors) {
     for (const n of getNeighborKeys(keyInfo)) neighborByCircle.set(n.circleIndex, n);
+  }
+  // Live MIDI: highlight the keys containing the detected chord (wins over
+  // the neighbor badges while a chord is held).
+  if (detectedChord) {
+    for (const m of chordMatches) {
+      neighborByCircle.set(m.circleIndex, {
+        tonic: m.tonic,
+        mode: m.mode,
+        circleIndex: m.circleIndex,
+        relationship: `${detectedChord.symbol} is ${m.roman} in ${m.tonic} major`,
+        short: m.roman,
+      });
+    }
   }
 
   const focusButton = (index: number) => {
@@ -177,8 +192,8 @@ export function CircleOfFifths() {
           </span>
         </div>
 
-        {/* Inner chord-wheel ring */}
-        {showChordWheel && <ChordWheelRing />}
+        {/* Inner chord ring (diatonic / secondary dominants / borrowed) */}
+        <ChordWheelRing />
 
         {/* The 12 note segments */}
         {keyInfo.notes.map((note, i) => {

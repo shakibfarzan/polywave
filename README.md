@@ -30,6 +30,19 @@ scored key-signature quiz.
   (dominant, subdominant, relative) one accidental away.
 - **Metronome** (accented, Tone.Transport-locked) and a **practice timer**.
 
+**Advanced tools (Phase 4)**
+
+- **Web MIDI input** — connect a keyboard, and held chords are identified live
+  (triads and 7ths, any inversion) with the matching keys highlighted on the
+  circle with their degree. Progressive enhancement: unsupported browsers
+  (Safari) see a graceful notice.
+- **Secondary dominants** — ring overlay showing V7 of each tonicizable degree
+  (V7/ii … V7/vi) at its root's circle position.
+- **Modal interchange** — ring overlay of chords borrowed from the parallel
+  key (iv, ♭III, ♭VI, ♭VII, … in major), labelled relative to the tonic.
+- **MIDI export** — download a built progression as a standard `.mid` file
+  (type-0 SMF, tempo included, dependency-free encoder).
+
 **Throughout**
 
 - **Dark / light mode**, persisted. Fully keyboard-navigable and ARIA-labelled.
@@ -77,8 +90,7 @@ src/
 
 ## Roadmap
 
-Phases 1–3 are complete. Remaining, designed to be additive:
+Phases 1–4 are complete. Remaining, designed to be additive:
 
-- **Phase 4** — Web MIDI input (detect a played chord, highlight matching keys),
-  secondary-dominant / modal-interchange overlays, MIDI export of a progression.
-- **Phase 5** — practice-stats dashboard, instrument/notation settings.
+- **Phase 5** — practice-stats dashboard (streaks, accuracy), settings panel
+  (sharps-vs-flats notation, instrument/synth choice).

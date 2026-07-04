@@ -502,6 +502,206 @@ export function getDiatonicChords(key: KeyInfo, sevenths = false): DiatonicChord
   });
 }
 
+// --- Phase 4: chord detection (Web MIDI input) ------------------------------
+
+export interface DetectedChord {
+  rootPitchClass: number;
+  rootName: string; // context-free spelling (slash form for black keys)
+  quality: string; // human label, e.g. "minor 7th"
+  symbol: string; // e.g. "Dm7"
+  pitchClasses: number[]; // root-first, normalized
+}
+
+/** Chord templates as interval sets from the root. Larger sets first so 7ths win. */
+const CHORD_TEMPLATES: { intervals: number[]; quality: string; suffix: string }[] = [
+  { intervals: [0, 4, 7, 11], quality: "major 7th", suffix: "maj7" },
+  { intervals: [0, 4, 7, 10], quality: "dominant 7th", suffix: "7" },
+  { intervals: [0, 3, 7, 10], quality: "minor 7th", suffix: "m7" },
+  { intervals: [0, 3, 6, 10], quality: "half-diminished 7th", suffix: `m7${FLAT}5` },
+  { intervals: [0, 3, 6, 9], quality: "diminished 7th", suffix: "°7" },
+  { intervals: [0, 4, 7], quality: "major", suffix: "" },
+  { intervals: [0, 3, 7], quality: "minor", suffix: "m" },
+  { intervals: [0, 3, 6], quality: "diminished", suffix: "dim" },
+  { intervals: [0, 4, 8], quality: "augmented", suffix: "+" },
+];
+
+/** Short root spelling for detected chords (prefer the sharp side of slash names). */
+function detectedRootName(pc: number): string {
+  return DEFAULT_NOTE_NAMES[pc].split("/")[0];
+}
+
+/** Display name for a raw MIDI note number, e.g. 61 → "C♯4". */
+export function midiNoteName(midiNumber: number): string {
+  const pc = mod(midiNumber, 12);
+  const octave = Math.floor(midiNumber / 12) - 1;
+  return `${detectedRootName(pc)}${octave}`;
+}
+
+/**
+ * Identify a chord from a set of pitch classes (e.g. held MIDI notes).
+ * Octaves and doublings are ignored; inversions are recognized by trying
+ * every note as a candidate root. Returns null if nothing matches.
+ */
+export function detectChord(pitchClasses: number[]): DetectedChord | null {
+  const unique = [...new Set(pitchClasses.map((pc) => mod(pc, 12)))];
+  if (unique.length < 3) return null;
+  for (const template of CHORD_TEMPLATES) {
+    if (template.intervals.length !== unique.length) continue;
+    for (const root of unique) {
+      const intervals = unique.map((pc) => mod(pc - root, 12)).sort((a, b) => a - b);
+      if (intervals.every((v, i) => v === template.intervals[i])) {
+        const rootName = detectedRootName(root);
+        return {
+          rootPitchClass: root,
+          rootName,
+          quality: template.quality,
+          symbol: `${rootName}${template.suffix}`,
+          pitchClasses: template.intervals.map((iv) => mod(root + iv, 12)),
+        };
+      }
+    }
+  }
+  return null;
+}
+
+export interface ChordKeyMatch {
+  tonic: string;
+  mode: Mode;
+  roman: string;
+  circleIndex: number;
+}
+
+/**
+ * The major keys in which a detected chord is diatonic, with the degree it
+ * occupies — used to highlight modulation candidates on the circle live.
+ */
+export function getChordMatches(chord: DetectedChord): ChordKeyMatch[] {
+  const target = [...chord.pitchClasses].sort((a, b) => a - b).join(",");
+  const isSeventh = chord.pitchClasses.length === 4;
+  const matches: ChordKeyMatch[] = [];
+  for (const tonic of MAJOR_CIRCLE) {
+    const key = getKeyInfo(tonic, "ionian");
+    for (const dc of getDiatonicChords(key, isSeventh)) {
+      const set = [...dc.pitchClasses].sort((a, b) => a - b).join(",");
+      if (set === target) {
+        matches.push({
+          tonic: key.tonic,
+          mode: "ionian",
+          roman: dc.roman,
+          circleIndex: CIRCLE_PITCH_CLASSES.indexOf(noteNameToPitchClass(key.tonic)),
+        });
+      }
+    }
+  }
+  return matches;
+}
+
+// --- Phase 4: secondary dominants & modal interchange ----------------------
+
+export interface OverlayChord {
+  /** Circle position where the chip renders (the chord root's position). */
+  circleIndex: number;
+  symbol: string; // e.g. "A7" or "Fm"
+  label: string; // e.g. "V7/ii" or "iv"
+  tones: string[];
+  pitchClasses: number[];
+  description: string;
+}
+
+/**
+ * Secondary dominants: the V7 of each diatonic degree that can be tonicized
+ * (ii, iii, IV, V, vi — I's dominant is already diatonic; vii° can't be
+ * tonicized). Rendered at the dominant root's circle position.
+ */
+export function getSecondaryDominants(key: KeyInfo): OverlayChord[] {
+  const result: OverlayChord[] = [];
+  for (const degreeIndex of [1, 2, 3, 4, 5]) {
+    const target = key.scale[degreeIndex];
+    const { letterIndex: targetLetter } = parseNoteName(target.name);
+    const rootLetter = (targetLetter + 4) % 7;
+    const rootPC = mod(target.pitchClass + 7, 12);
+    const rootName = spellNote(rootLetter, rootPC);
+    // Dominant 7th: root, major 3rd, perfect 5th, minor 7th — spelled by
+    // stacking letter thirds from the root.
+    const tones = [0, 4, 7, 10].map((iv, i) =>
+      spellNote((rootLetter + i * 2) % 7, mod(rootPC + iv, 12)),
+    );
+    result.push({
+      circleIndex: CIRCLE_PITCH_CLASSES.indexOf(rootPC),
+      symbol: `${rootName}7`,
+      label: `V7/${target.romanNumeral}`,
+      tones,
+      pitchClasses: [0, 4, 7, 10].map((iv) => mod(rootPC + iv, 12)),
+      description: `Dominant of ${target.name} (${target.romanNumeral})`,
+    });
+  }
+  return result;
+}
+
+/** Roman numeral for a chord relative to a tonic, with ♭/♯ prefix vs. major. */
+function relativeRoman(
+  tonicPC: number,
+  letterDistance: number,
+  rootPC: number,
+  quality: ChordQuality,
+): string {
+  const majorIntervals = MODE_INTERVALS.ionian;
+  const expected = majorIntervals[letterDistance];
+  let diff = mod(rootPC - tonicPC, 12) - expected;
+  if (diff > 6) diff -= 12;
+  if (diff < -6) diff += 12;
+  const prefix = diff === 0 ? "" : diff > 0 ? SHARP.repeat(diff) : FLAT.repeat(-diff);
+  return prefix + romanFor(letterDistance, quality);
+}
+
+/**
+ * Modal interchange: chords borrowed from the parallel key (same tonic,
+ * major↔minor). Only chords not already diatonic in the current key are
+ * returned, labelled relative to the current tonic (iv, ♭VI, ♭VII, ...).
+ */
+export function getBorrowedChords(key: KeyInfo): OverlayChord[] {
+  const parallelMode: Mode = key.mode === "ionian" ? "aeolian" : "ionian";
+  const parallel = getKeyInfo(key.tonic, parallelMode);
+  const tonicPC = key.scale[0].pitchClass;
+
+  const ownSets = new Set(
+    getDiatonicChords(key).map((c) =>
+      [...c.pitchClasses].sort((a, b) => a - b).join(","),
+    ),
+  );
+
+  const result: OverlayChord[] = [];
+  parallel.scale.forEach((root, i) => {
+    const third = parallel.scale[(i + 2) % 7];
+    const fifth = parallel.scale[(i + 4) % 7];
+    const pcs = [root.pitchClass, third.pitchClass, fifth.pitchClass];
+    const setKey = [...pcs].sort((a, b) => a - b).join(",");
+    if (ownSets.has(setKey)) return; // already diatonic — not borrowed
+    const quality = root.chordQuality ?? "major";
+    const { symbol } = (() => {
+      switch (quality) {
+        case "major":
+          return { symbol: root.name };
+        case "minor":
+          return { symbol: `${root.name}m` };
+        case "diminished":
+          return { symbol: `${root.name}dim` };
+        case "augmented":
+          return { symbol: `${root.name}+` };
+      }
+    })();
+    result.push({
+      circleIndex: CIRCLE_PITCH_CLASSES.indexOf(root.pitchClass),
+      symbol,
+      label: relativeRoman(tonicPC, i, root.pitchClass, quality),
+      tones: [root.name, third.name, fifth.name],
+      pitchClasses: pcs,
+      description: `Borrowed from ${parallel.tonic} ${MODE_LABELS[parallelMode]}`,
+    });
+  });
+  return result;
+}
+
 // --- Phase 3: neighbor keys (modulation targets) ---------------------------
 
 export interface NeighborKey {
