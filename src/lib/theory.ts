@@ -537,6 +537,23 @@ export function midiNoteName(midiNumber: number): string {
   return `${detectedRootName(pc)}${octave}`;
 }
 
+// --- Phase 5: notation preference -------------------------------------------
+
+export type NotationPref = "auto" | "sharps" | "flats";
+
+/**
+ * Apply the sharps-vs-flats display preference to a note name. Only slash
+ * names ("C♯/D♭") are affected — key-correct diatonic spellings pass through
+ * untouched, since those aren't a matter of preference.
+ */
+export function formatNoteName(name: string, pref: NotationPref): string {
+  if (pref === "auto" || !name.includes("/")) return name;
+  const parts = name.split("/");
+  const sharpSide = parts.find((p) => p.includes(SHARP)) ?? parts[0];
+  const flatSide = parts.find((p) => p.includes(FLAT)) ?? parts[parts.length - 1];
+  return pref === "sharps" ? sharpSide : flatSide;
+}
+
 /**
  * Identify a chord from a set of pitch classes (e.g. held MIDI notes).
  * Octaves and doublings are ignored; inversions are recognized by trying

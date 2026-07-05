@@ -8,6 +8,7 @@ import {
   getChordMatches,
   getSecondaryDominants,
   getBorrowedChords,
+  formatNoteName,
   parseNoteName,
   noteNameToPitchClass,
   practicalKeys,
@@ -248,6 +249,20 @@ describe("borrowed chords (modal interchange)", () => {
     const labels = borrowed.map((b) => b.label);
     expect(labels).toContain("IV"); // D major borrowed into A minor
     expect(labels).toContain("I");
+  });
+});
+
+describe("notation preference", () => {
+  it("picks the requested side of slash names", () => {
+    expect(formatNoteName("C♯/D♭", "sharps")).toBe("C♯");
+    expect(formatNoteName("C♯/D♭", "flats")).toBe("D♭");
+    expect(formatNoteName("F♯/G♭", "flats")).toBe("G♭");
+  });
+
+  it("leaves plain names and auto mode untouched", () => {
+    expect(formatNoteName("C♯/D♭", "auto")).toBe("C♯/D♭");
+    expect(formatNoteName("G", "sharps")).toBe("G");
+    expect(formatNoteName("E♭", "sharps")).toBe("E♭"); // key-correct spelling wins
   });
 });
 

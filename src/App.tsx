@@ -14,6 +14,8 @@ import { MidiStatus } from "@/components/midi/MidiStatus";
 import { Metronome } from "@/components/practice/Metronome";
 import { PracticeTimer } from "@/components/practice/PracticeTimer";
 import { QuizMode } from "@/components/quiz/QuizMode";
+import { SettingsPanel } from "@/components/settings/SettingsPanel";
+import { StatsDashboard } from "@/components/stats/StatsDashboard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function App() {
@@ -39,7 +41,10 @@ export default function App() {
               </p>
             </div>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <SettingsPanel />
+          </div>
         </header>
 
         <Tabs defaultValue="explore" className="gap-6">
@@ -48,6 +53,7 @@ export default function App() {
             <TabsTrigger value="practice">Practice</TabsTrigger>
             <TabsTrigger value="build">Build</TabsTrigger>
             <TabsTrigger value="quiz">Quiz</TabsTrigger>
+            <TabsTrigger value="stats">Stats</TabsTrigger>
           </TabsList>
 
           <TabsContent
@@ -105,6 +111,10 @@ export default function App() {
 
           <TabsContent value="quiz">
             <QuizMode />
+          </TabsContent>
+
+          <TabsContent value="stats">
+            <StatsDashboard />
           </TabsContent>
         </Tabs>
 

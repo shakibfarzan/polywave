@@ -43,6 +43,15 @@ scored key-signature quiz.
 - **MIDI export** — download a built progression as a standard `.mid` file
   (type-0 SMF, tempo included, dependency-free encoder).
 
+**Polish (Phase 5)**
+
+- **Practice stats** — quiz accuracy, best quiz streak, consecutive-day streak,
+  total practice time, and sounds played, all persisted locally with a
+  dashboard on the Stats tab.
+- **Settings panel** — dark mode, accidental notation (both / sharps / flats
+  for out-of-key notes), and instrument choice (triangle, sine, sawtooth,
+  square, FM e-piano).
+
 **Throughout**
 
 - **Dark / light mode**, persisted. Fully keyboard-navigable and ARIA-labelled.
@@ -90,7 +99,6 @@ src/
 
 ## Roadmap
 
-Phases 1–4 are complete. Remaining, designed to be additive:
-
-- **Phase 5** — practice-stats dashboard (streaks, accuracy), settings panel
-  (sharps-vs-flats notation, instrument/synth choice).
+All five phases of the original build brief are complete. Ideas beyond v1:
+cloud-synced practice stats (would need a backend — revisit the Vite-vs-Next
+decision then), audio-input key detection, and deep-linking keys via a router.

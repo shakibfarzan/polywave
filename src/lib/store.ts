@@ -19,7 +19,15 @@ import {
   type KeyInfo,
   type KeySignature,
   type Mode,
+  type NotationPref,
 } from "./theory";
+import {
+  emptyStats,
+  recordActivity,
+  recordPracticeTime,
+  recordQuizAnswer,
+  type PracticeStats,
+} from "./stats";
 import {
   connectMidi as midiConnect,
   disconnectMidi as midiDisconnect,
@@ -32,8 +40,10 @@ import {
   playChord,
   playScale,
   playSequence,
+  setInstrument as audioSetInstrument,
   startMetronome,
   setTransportTempo,
+  type InstrumentId,
   type MetronomeHandle,
   type PlaybackHandle,
 } from "./audio";
@@ -103,12 +113,17 @@ interface PolywaveState {
   metronomeOn: boolean;
   metronomeBeat: number | null;
 
-  // Appearance
+  // Appearance & sound settings (Phase 5)
   theme: Theme;
+  notation: NotationPref;
+  instrument: InstrumentId;
 
   // Quiz
   quiz: QuizSession;
   bestStreak: number;
+
+  // Practice stats (Phase 5)
+  stats: PracticeStats;
 
   // Actions
   setKey: (tonic: string, mode: Mode) => void;
@@ -135,6 +150,10 @@ interface PolywaveState {
   toggleMetronome: () => Promise<void>;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
+  setNotation: (notation: NotationPref) => void;
+  setInstrument: (instrument: InstrumentId) => void;
+  addPracticeTime: (seconds: number) => void;
+  resetStats: () => void;
   startQuiz: (type?: QuizType) => void;
   answerQuiz: (choice: string) => void;
   nextQuestion: () => void;
@@ -279,6 +298,10 @@ export const usePolywaveStore = create<PolywaveState>()(
       metronomeBeat: null,
 
       theme: getInitialTheme(),
+      notation: "auto",
+      instrument: "classic",
+
+      stats: emptyStats(),
 
       quiz: {
         active: false,
@@ -365,18 +388,24 @@ export const usePolywaveStore = create<PolywaveState>()(
       playSingleNote: async (pitchClass) => {
         await ensureAudio();
         playNote(pitchClass);
+        set((s) => ({ stats: recordActivity(s.stats, "note") }));
       },
 
       playChordNotes: async (pitchClasses) => {
         await ensureAudio();
         playChord(pitchClasses);
+        set((s) => ({ stats: recordActivity(s.stats, "chord") }));
       },
 
       playCurrentScale: async (direction = "up") => {
         await ensureAudio();
         get().stopPlayback();
         const { keyInfo, tempo } = get();
-        set({ isPlaying: true, currentStepIndex: null });
+        set((s) => ({
+          isPlaying: true,
+          currentStepIndex: null,
+          stats: recordActivity(s.stats, "scale"),
+        }));
         currentPlayer = playScale(keyInfo.scale, {
           tempo,
           direction,
@@ -454,6 +483,18 @@ export const usePolywaveStore = create<PolywaveState>()(
         get().setTheme(next);
       },
 
+      setNotation: (notation) => set({ notation }),
+
+      setInstrument: (instrument) => {
+        audioSetInstrument(instrument);
+        set({ instrument });
+      },
+
+      addPracticeTime: (seconds) =>
+        set((s) => ({ stats: recordPracticeTime(s.stats, seconds) })),
+
+      resetStats: () => set({ stats: emptyStats(), bestStreak: 0 }),
+
       startQuiz: (type) => {
         const quizType = type ?? get().quiz.type;
         const q = makeQuestion(quizType);
@@ -469,7 +510,7 @@ export const usePolywaveStore = create<PolywaveState>()(
       },
 
       answerQuiz: (choice) => {
-        const { quiz, bestStreak } = get();
+        const { quiz, bestStreak, stats } = get();
         if (quiz.selected !== null) return; // already answered
         const correct = choice === quiz.correct;
         const streak = correct ? quiz.streak + 1 : 0;
@@ -482,6 +523,7 @@ export const usePolywaveStore = create<PolywaveState>()(
             streak,
           },
           bestStreak: Math.max(bestStreak, streak),
+          stats: recordQuizAnswer(stats, correct),
         });
       },
 
@@ -509,11 +551,15 @@ export const usePolywaveStore = create<PolywaveState>()(
         showNeighbors: s.showNeighbors,
         tempo: s.tempo,
         theme: s.theme,
+        notation: s.notation,
+        instrument: s.instrument,
         bestStreak: s.bestStreak,
+        stats: s.stats,
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
         applyTheme(state.theme);
+        audioSetInstrument(state.instrument);
         state.recomputeKeyInfo();
       },
     },

@@ -1,7 +1,7 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { NoteInfo, NeighborKey } from "@/lib/theory";
-import type { OverlayMode } from "@/lib/store";
+import { formatNoteName, type NoteInfo, type NeighborKey } from "@/lib/theory";
+import { usePolywaveStore, type OverlayMode } from "@/lib/store";
 
 interface NoteSegmentProps {
   note: NoteInfo;
@@ -46,8 +46,10 @@ export function NoteSegment({
   onFocus,
   buttonRef,
 }: NoteSegmentProps) {
+  const notation = usePolywaveStore((s) => s.notation);
   const sub = overlayText(note, overlay);
-  const nameParts = note.name.split("/");
+  const displayName = formatNoteName(note.name, notation);
+  const nameParts = displayName.split("/");
 
   return (
     <Tooltip>
@@ -88,7 +90,7 @@ export function NoteSegment({
                 <span>{nameParts[1]}</span>
               </span>
             ) : (
-              <span className="text-[1.05em]">{note.name}</span>
+              <span className="text-[1.05em]">{displayName}</span>
             )}
           </span>
           {sub && (

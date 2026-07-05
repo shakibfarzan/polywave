@@ -14,6 +14,55 @@ type Duration = ToneNS.Unit.Time;
 let Tone: typeof ToneNS | null = null;
 let synth: ToneNS.PolySynth | null = null;
 
+/** Selectable synth voices (Phase 5 settings). */
+export type InstrumentId = "classic" | "soft" | "bright" | "retro" | "epiano";
+
+export const INSTRUMENT_LABELS: Record<InstrumentId, string> = {
+  classic: "Classic (triangle)",
+  soft: "Soft (sine)",
+  bright: "Bright (sawtooth)",
+  retro: "Retro (square)",
+  epiano: "E-piano (FM)",
+};
+
+let currentInstrument: InstrumentId = "classic";
+
+const ENVELOPE = { attack: 0.01, decay: 0.2, sustain: 0.25, release: 0.8 };
+
+function createSynth(tone: typeof ToneNS, instrument: InstrumentId): ToneNS.PolySynth {
+  let s: ToneNS.PolySynth;
+  if (instrument === "epiano") {
+    s = new tone.PolySynth(tone.FMSynth, {
+      harmonicity: 3,
+      modulationIndex: 8,
+      envelope: { ...ENVELOPE, release: 1.1 },
+      modulationEnvelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.6 },
+    });
+  } else {
+    const oscType = (
+      { classic: "triangle", soft: "sine", bright: "sawtooth", retro: "square" } as const
+    )[instrument];
+    s = new tone.PolySynth(tone.Synth, {
+      oscillator: { type: oscType },
+      envelope: ENVELOPE,
+    });
+  }
+  s.toDestination();
+  // Sawtooth/square are much louder than sine/triangle; balance them.
+  s.volume.value = instrument === "bright" || instrument === "retro" ? -14 : -8;
+  return s;
+}
+
+/** Switch the synth voice. Takes effect immediately if audio is running. */
+export function setInstrument(instrument: InstrumentId): void {
+  if (instrument === currentInstrument) return;
+  currentInstrument = instrument;
+  if (Tone && synth) {
+    synth.dispose();
+    synth = createSynth(Tone, instrument);
+  }
+}
+
 /**
  * Lazily load Tone.js, resume the audio context, and create the synth.
  * Must be called from (or awaited after) a user gesture.
@@ -24,11 +73,7 @@ export async function ensureAudio(): Promise<void> {
   }
   await Tone.start();
   if (!synth) {
-    synth = new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: "triangle" },
-      envelope: { attack: 0.01, decay: 0.2, sustain: 0.25, release: 0.8 },
-    }).toDestination();
-    synth.volume.value = -8;
+    synth = createSynth(Tone, currentInstrument);
   }
 }
 
