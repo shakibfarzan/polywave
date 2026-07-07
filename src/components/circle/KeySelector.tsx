@@ -2,12 +2,8 @@ import { useMemo, useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 
 import { usePolywaveStore } from "@/lib/store";
-import {
-  allPracticalKeys,
-  MODES,
-  MODE_LABELS,
-  type Mode,
-} from "@/lib/theory";
+import { allPracticalKeys, MODES, type Mode } from "@/lib/theory";
+import { useT } from "@/hooks/useT";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,13 +21,14 @@ import {
 } from "@/components/ui/popover";
 
 export function KeySelector() {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const tonic = usePolywaveStore((s) => s.keyInfo.tonic);
   const mode = usePolywaveStore((s) => s.keyInfo.mode);
   const setKey = usePolywaveStore((s) => s.setKey);
 
   const groups = useMemo(() => allPracticalKeys(), []);
-  const currentLabel = `${tonic} ${MODE_LABELS[mode]}`;
+  const currentLabel = `${tonic} ${t(`mode.${mode}`)}`;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -40,8 +37,8 @@ export function KeySelector() {
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          aria-label="Select key and mode"
-          className="w-[16rem] justify-between"
+          aria-label={t("key.select")}
+          className="w-full justify-between"
         >
           {currentLabel}
           <ChevronsUpDown className="opacity-50" />
@@ -49,17 +46,17 @@ export function KeySelector() {
       </PopoverTrigger>
       <PopoverContent className="w-[16rem] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Search key or mode…" />
+          <CommandInput placeholder={t("key.search")} />
           <CommandList>
-            <CommandEmpty>No key found.</CommandEmpty>
+            <CommandEmpty>{t("key.empty")}</CommandEmpty>
             {MODES.map((m: Mode) => (
-              <CommandGroup key={m} heading={MODE_LABELS[m]}>
+              <CommandGroup key={m} heading={t(`mode.${m}`)}>
                 {groups[m].map((choice) => {
                   const selected = choice.tonic === tonic && choice.mode === mode;
                   return (
                     <CommandItem
                       key={choice.label}
-                      value={choice.label}
+                      value={`${choice.tonic} ${t(`mode.${m}`)}`}
                       onSelect={() => {
                         setKey(choice.tonic, choice.mode);
                         setOpen(false);
@@ -69,8 +66,8 @@ export function KeySelector() {
                         className={cn(selected ? "opacity-100" : "opacity-0")}
                       />
                       {choice.tonic}
-                      <span className="ml-auto text-xs text-muted-foreground">
-                        {MODE_LABELS[m]}
+                      <span className="ms-auto text-xs text-muted-foreground">
+                        {t(`mode.${m}`)}
                       </span>
                     </CommandItem>
                   );

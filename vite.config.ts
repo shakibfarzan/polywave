@@ -17,8 +17,8 @@ export default defineConfig({
         short_name: "Polywave",
         description:
           "An installable practice tool built around the circle of fifths.",
-        theme_color: "#7c3aed",
-        background_color: "#0b0b12",
+        theme_color: "#241f17",
+        background_color: "#241f17",
         display: "standalone",
         orientation: "any",
         start_url: "/",

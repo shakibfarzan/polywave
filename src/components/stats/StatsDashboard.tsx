@@ -3,6 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 
 import { usePolywaveStore } from "@/lib/store";
 import { formatPracticeTime, quizAccuracy } from "@/lib/stats";
+import { useT } from "@/hooks/useT";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/card";
 
 export function StatsDashboard() {
+  const { t, n, digits } = useT();
   const { stats, bestStreak, resetStats } = usePolywaveStore(
     useShallow((s) => ({
       stats: s.stats,
@@ -26,39 +28,46 @@ export function StatsDashboard() {
   const cards = [
     {
       icon: Target,
-      title: "Quiz accuracy",
-      value: accuracy === null ? "—" : `${accuracy}%`,
+      title: t("stats.accuracy"),
+      value: accuracy === null ? "—" : digits(`${accuracy}%`),
       detail:
         stats.quizAnswered === 0
-          ? "No questions answered yet"
-          : `${stats.quizCorrect} of ${stats.quizAnswered} correct`,
+          ? t("stats.accuracyEmpty")
+          : t("stats.accuracyDetail", {
+              correct: n(stats.quizCorrect),
+              total: n(stats.quizAnswered),
+            }),
     },
     {
       icon: Trophy,
-      title: "Best quiz streak",
-      value: String(bestStreak),
-      detail: "Right answers in a row",
+      title: t("stats.bestQuiz"),
+      value: n(bestStreak),
+      detail: t("stats.bestQuizDetail"),
     },
     {
       icon: Flame,
-      title: "Day streak",
-      value: String(stats.dayStreak),
+      title: t("stats.dayStreak"),
+      value: n(stats.dayStreak),
       detail:
         stats.lastPracticeDay === null
-          ? "Practice to start a streak"
-          : `Last practice: ${stats.lastPracticeDay}`,
+          ? t("stats.dayStreakEmpty")
+          : t("stats.lastPractice", { date: digits(stats.lastPracticeDay) }),
     },
     {
       icon: Timer,
-      title: "Practice time",
-      value: formatPracticeTime(stats.practiceSeconds),
-      detail: "Tracked by the practice timer",
+      title: t("stats.practiceTime"),
+      value: digits(formatPracticeTime(stats.practiceSeconds)),
+      detail: t("stats.practiceDetail"),
     },
     {
       icon: Music,
-      title: "Sounds played",
-      value: String(stats.notesPlayed + stats.chordsPlayed + stats.scalesPlayed),
-      detail: `${stats.notesPlayed} notes · ${stats.chordsPlayed} chords · ${stats.scalesPlayed} scales`,
+      title: t("stats.sounds"),
+      value: n(stats.notesPlayed + stats.chordsPlayed + stats.scalesPlayed),
+      detail: t("stats.soundsDetail", {
+        notes: n(stats.notesPlayed),
+        chords: n(stats.chordsPlayed),
+        scales: n(stats.scalesPlayed),
+      }),
     },
   ];
 
@@ -72,7 +81,9 @@ export function StatsDashboard() {
                 <c.icon className="size-3.5" />
                 {c.title}
               </CardDescription>
-              <CardTitle className="text-3xl tabular-nums">{c.value}</CardTitle>
+              <CardTitle className="font-display text-3xl tabular-nums">
+                {c.value}
+              </CardTitle>
             </CardHeader>
             <CardContent className="text-xs text-muted-foreground">
               {c.detail}
@@ -83,7 +94,7 @@ export function StatsDashboard() {
       <div className="flex justify-center">
         <Button variant="ghost" size="sm" onClick={resetStats}>
           <Trash2 />
-          Reset stats
+          {t("stats.reset")}
         </Button>
       </div>
     </div>

@@ -3,12 +3,12 @@ import { useShallow } from "zustand/react/shallow";
 
 import { usePolywaveStore } from "@/lib/store";
 import {
-  circleMajorSignatureLabel,
-  describeSignature,
+  getKeyInfo,
   getNeighborKeys,
-  MODE_LABELS,
+  CIRCLE_MAJOR_KEYS,
   type NeighborKey,
 } from "@/lib/theory";
+import { useT } from "@/hooks/useT";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { NoteSegment } from "./NoteSegment";
 import { ChordWheelRing } from "./ChordWheelRing";
@@ -25,7 +25,17 @@ function positionFor(circleIndex: number, radius = RING_RADIUS) {
   };
 }
 
+/** Localize the relationship names coming from theory. */
+const REL_KEYS = {
+  Dominant: "rel.dominant",
+  Subdominant: "rel.subdominant",
+  "Relative minor": "rel.relativeMinor",
+  "Relative major": "rel.relativeMajor",
+} as const;
+
 export function CircleOfFifths() {
+  const i18n = useT();
+  const { t } = i18n;
   const {
     keyInfo,
     overlay,
@@ -66,17 +76,22 @@ export function CircleOfFifths() {
 
   const neighborByCircle = new Map<number, NeighborKey>();
   if (showNeighbors) {
-    for (const n of getNeighborKeys(keyInfo)) neighborByCircle.set(n.circleIndex, n);
+    for (const n of getNeighborKeys(keyInfo)) {
+      const relKey = REL_KEYS[n.relationship as keyof typeof REL_KEYS];
+      neighborByCircle.set(n.circleIndex, {
+        ...n,
+        relationship: relKey ? t(relKey) : n.relationship,
+      });
+    }
   }
-  // Live MIDI: highlight the keys containing the detected chord (wins over
-  // the neighbor badges while a chord is held).
+  // Live MIDI: keys containing the held chord win over the neighbor badges.
   if (detectedChord) {
     for (const m of chordMatches) {
       neighborByCircle.set(m.circleIndex, {
         tonic: m.tonic,
         mode: m.mode,
         circleIndex: m.circleIndex,
-        relationship: `${detectedChord.symbol} is ${m.roman} in ${m.tonic} major`,
+        relationship: t("midi.matchItem", { tonic: m.tonic, roman: m.roman }),
         short: m.roman,
       });
     }
@@ -129,12 +144,15 @@ export function CircleOfFifths() {
     })
     .join(" ");
 
+  const keyLabel = `${keyInfo.tonic} ${t(`mode.${keyInfo.mode}`)}`;
+
   return (
     <TooltipProvider delayDuration={150}>
       <div
-        className="relative mx-auto aspect-square w-full max-w-[min(86vw,520px)]"
+        className="relative mx-auto aspect-square w-full max-w-[min(86vw,540px)]"
         role="group"
-        aria-label={`Circle of fifths, key of ${keyInfo.tonic} ${MODE_LABELS[keyInfo.mode]}`}
+        aria-label={t("circle.aria", { key: keyLabel })}
+        dir="ltr"
       >
         {/* Decorative rings */}
         <div className="pointer-events-none absolute inset-[12%] rounded-full border border-border" />
@@ -167,9 +185,7 @@ export function CircleOfFifths() {
                   cx={x}
                   cy={y}
                   r={active ? 2.4 : 1.4}
-                  fill={
-                    active ? "var(--color-playing)" : "var(--color-primary)"
-                  }
+                  fill={active ? "var(--color-playing)" : "var(--color-primary)"}
                 />
               );
             })}
@@ -177,18 +193,21 @@ export function CircleOfFifths() {
         )}
 
         {/* Center label */}
-        <div className="pointer-events-none absolute inset-[28%] flex flex-col items-center justify-center rounded-full bg-accent/40 text-center">
-          <span className="text-xs tracking-wide text-muted-foreground uppercase">
-            Key of
+        <div
+          className="pointer-events-none absolute inset-[28%] flex flex-col items-center justify-center rounded-full bg-accent/40 text-center"
+          dir={i18n.isRtl ? "rtl" : "ltr"}
+        >
+          <span className="text-[0.68rem] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+            {t("key.keyOf")}
           </span>
-          <span className="text-2xl font-bold text-foreground sm:text-3xl">
+          <span className="font-display text-4xl leading-tight font-bold text-foreground sm:text-5xl">
             {keyInfo.tonic}
           </span>
-          <span className="px-2 text-[0.7rem] leading-tight text-muted-foreground">
-            {MODE_LABELS[keyInfo.mode]}
+          <span className="px-2 text-[0.72rem] leading-tight text-muted-foreground">
+            {t(`mode.${keyInfo.mode}`)}
           </span>
-          <span className="mt-1 text-[0.65rem] text-muted-foreground">
-            {describeSignature(keyInfo.signature)}
+          <span className="mt-1 px-3 text-[0.65rem] text-muted-foreground">
+            {i18n.sig(keyInfo.signature)}
           </span>
         </div>
 
@@ -210,7 +229,9 @@ export function CircleOfFifths() {
                 isPlaying={playingCircleIndex === note.circleIndex}
                 overlay={overlay}
                 neighbor={neighborByCircle.get(note.circleIndex) ?? null}
-                signatureLabel={circleMajorSignatureLabel(note.circleIndex)}
+                signatureLabel={i18n.sig(
+                  getKeyInfo(CIRCLE_MAJOR_KEYS[note.circleIndex], "ionian").signature,
+                )}
                 tabIndex={focusedIndex === i ? 0 : -1}
                 onActivate={() => activateNote(note)}
                 onKeyDown={(e) => handleKeyDown(e, i)}

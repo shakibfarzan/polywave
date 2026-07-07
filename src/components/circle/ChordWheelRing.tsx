@@ -6,6 +6,8 @@ import {
   getDiatonicChords,
   getSecondaryDominants,
 } from "@/lib/theory";
+import { useT } from "@/hooks/useT";
+import type { TranslationKey } from "@/lib/i18n";
 import {
   Tooltip,
   TooltipContent,
@@ -20,7 +22,7 @@ interface RingChip {
   key: string;
   circleIndex: number;
   symbol: string;
-  sub: string | null; // small label under the symbol in the tooltip
+  sub: string | null;
   tones: string[];
   pitchClasses: number[];
   detail: string;
@@ -28,6 +30,7 @@ interface RingChip {
 }
 
 export function ChordWheelRing() {
+  const { t } = useT();
   const {
     keyInfo,
     ringMode,
@@ -57,7 +60,7 @@ export function ChordWheelRing() {
       sub: c.roman,
       tones: c.tones,
       pitchClasses: c.pitchClasses,
-      detail: c.quality,
+      detail: t(`quality.${c.quality}` as TranslationKey),
       flavor: "diatonic",
     }));
   } else {
@@ -72,7 +75,13 @@ export function ChordWheelRing() {
       sub: c.label,
       tones: c.tones,
       pitchClasses: c.pitchClasses,
-      detail: c.description,
+      detail: c.target
+        ? t("chord.dominantOf", { target: c.target.name, roman: c.target.roman })
+        : c.source
+          ? t("chord.borrowedFrom", {
+              key: `${c.source.tonic} ${t(`mode.${c.source.mode}`)}`,
+            })
+          : c.description,
       flavor: ringMode,
     }));
   }
@@ -93,7 +102,10 @@ export function ChordWheelRing() {
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label={`${chip.symbol} chord${chip.sub ? `, ${chip.sub}` : ""}`}
+                  aria-label={t("chord.aria", {
+                    symbol: chip.symbol,
+                    label: chip.sub ?? "",
+                  })}
                   onClick={() => {
                     void playChordNotes(chip.pitchClasses);
                     if (progressionMode) {

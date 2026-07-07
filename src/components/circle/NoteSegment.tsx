@@ -2,15 +2,16 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { formatNoteName, type NoteInfo, type NeighborKey } from "@/lib/theory";
 import { usePolywaveStore, type OverlayMode } from "@/lib/store";
+import { useT, type I18nApi } from "@/hooks/useT";
 
 interface NoteSegmentProps {
   note: NoteInfo;
   isTonic: boolean;
   isPlaying: boolean;
   overlay: OverlayMode;
-  /** Set when this position is a closely related (neighbor) key and the overlay is on. */
+  /** Set when this position is a highlighted related key; `relationship` is pre-localized. */
   neighbor: NeighborKey | null;
-  /** Major-key signature label for this circle position (for the tooltip). */
+  /** Localized major-key signature label for this circle position (tooltip). */
   signatureLabel: string;
   tabIndex: number;
   onActivate: () => void;
@@ -19,18 +20,27 @@ interface NoteSegmentProps {
   buttonRef: (el: HTMLButtonElement | null) => void;
 }
 
-function overlayText(note: NoteInfo, overlay: OverlayMode): string | null {
+function overlayText(note: NoteInfo, overlay: OverlayMode, i18n: I18nApi): string | null {
   if (!note.diatonic) return null;
   if (overlay === "roman") return note.romanNumeral;
-  if (overlay === "degrees") return note.scaleDegree?.toString() ?? null;
+  if (overlay === "degrees")
+    return note.scaleDegree != null ? i18n.n(note.scaleDegree) : null;
   return null;
 }
 
-function ariaLabel(note: NoteInfo, isTonic: boolean): string {
+function ariaLabel(note: NoteInfo, isTonic: boolean, i18n: I18nApi): string {
+  const { t } = i18n;
   const spoken = note.name.replace(/♯/g, " sharp").replace(/♭/g, " flat");
-  if (!note.diatonic) return `${spoken}, not in the current key. Press Enter to play.`;
-  const role = isTonic ? "tonic" : `scale degree ${note.scaleDegree}`;
-  return `${spoken}, ${role}, ${note.chordQuality} chord ${note.romanNumeral}. Press Enter to play.`;
+  if (!note.diatonic) return t("aria.noteOut", { note: spoken });
+  const role = isTonic
+    ? t("aria.tonic")
+    : t("aria.degree", { degree: i18n.n(note.scaleDegree ?? 0) });
+  return t("aria.noteIn", {
+    note: spoken,
+    role,
+    quality: note.chordQuality ? t(`quality.${note.chordQuality}`) : "",
+    roman: note.romanNumeral ?? "",
+  });
 }
 
 export function NoteSegment({
@@ -46,8 +56,10 @@ export function NoteSegment({
   onFocus,
   buttonRef,
 }: NoteSegmentProps) {
+  const i18n = useT();
+  const { t } = i18n;
   const notation = usePolywaveStore((s) => s.notation);
-  const sub = overlayText(note, overlay);
+  const sub = overlayText(note, overlay, i18n);
   const displayName = formatNoteName(note.name, notation);
   const nameParts = displayName.split("/");
 
@@ -61,7 +73,7 @@ export function NoteSegment({
           onClick={onActivate}
           onKeyDown={onKeyDown}
           onFocus={onFocus}
-          aria-label={ariaLabel(note, isTonic)}
+          aria-label={ariaLabel(note, isTonic, i18n)}
           aria-pressed={isPlaying}
           className={cn(
             "relative flex aspect-square w-full flex-col items-center justify-center rounded-full border-2 text-center transition-all duration-200 outline-none select-none",
@@ -83,14 +95,14 @@ export function NoteSegment({
               {neighbor.short}
             </span>
           )}
-          <span className="leading-tight">
+          <span className="font-display leading-tight">
             {nameParts.length > 1 ? (
               <span className="flex flex-col text-[0.7em] leading-none">
                 <span>{nameParts[0]}</span>
                 <span>{nameParts[1]}</span>
               </span>
             ) : (
-              <span className="text-[1.05em]">{displayName}</span>
+              <span className="text-[1.08em]">{displayName}</span>
             )}
           </span>
           {sub && (
@@ -106,21 +118,27 @@ export function NoteSegment({
           {note.diatonic ? (
             <>
               <div>
-                Degree {note.scaleDegree} · {note.romanNumeral}
+                {t("note.degreeRoman", {
+                  degree: i18n.n(note.scaleDegree ?? 0),
+                  roman: note.romanNumeral ?? "",
+                })}
               </div>
               <div className="opacity-90">
-                {note.chordTones.join(" – ")} ({note.chordQuality})
+                {note.chordTones.join(" – ")} (
+                {note.chordQuality ? t(`quality.${note.chordQuality}`) : ""})
               </div>
             </>
           ) : (
-            <div className="opacity-90">Not in key</div>
+            <div className="opacity-90">{t("note.notInKey")}</div>
           )}
           {neighbor && (
             <div className="font-medium text-playing">
-              {neighbor.relationship} key
+              {t("rel.key", { rel: neighbor.relationship })}
             </div>
           )}
-          <div className="opacity-75">As major key: {signatureLabel}</div>
+          <div className="opacity-75">
+            {t("note.asMajor", { sig: signatureLabel })}
+          </div>
         </div>
       </TooltipContent>
     </Tooltip>

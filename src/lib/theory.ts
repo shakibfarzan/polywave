@@ -623,6 +623,10 @@ export interface OverlayChord {
   tones: string[];
   pitchClasses: number[];
   description: string;
+  /** Secondary dominants: the degree being tonicized (for localized text). */
+  target?: { name: string; roman: string };
+  /** Borrowed chords: the parallel key they come from (for localized text). */
+  source?: { tonic: string; mode: Mode };
 }
 
 /**
@@ -650,6 +654,7 @@ export function getSecondaryDominants(key: KeyInfo): OverlayChord[] {
       tones,
       pitchClasses: [0, 4, 7, 10].map((iv) => mod(rootPC + iv, 12)),
       description: `Dominant of ${target.name} (${target.romanNumeral})`,
+      target: { name: target.name, roman: target.romanNumeral ?? "" },
     });
   }
   return result;
@@ -714,6 +719,7 @@ export function getBorrowedChords(key: KeyInfo): OverlayChord[] {
       tones: [root.name, third.name, fifth.name],
       pitchClasses: pcs,
       description: `Borrowed from ${parallel.tonic} ${MODE_LABELS[parallelMode]}`,
+      source: { tonic: parallel.tonic, mode: parallelMode },
     });
   });
   return result;

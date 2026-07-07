@@ -23,26 +23,27 @@ function dots() {
     const x = CENTER + RING_RADIUS * Math.sin(angle);
     const y = CENTER - RING_RADIUS * Math.cos(angle);
     const tonic = i === 0;
-    const r = tonic ? 20 : 12;
-    const fill = tonic ? "#ffffff" : "rgba(255,255,255,0.7)";
+    const r = tonic ? 21 : 11;
+    const fill = tonic ? "#d9a83f" : "rgba(240,229,205,0.62)";
     out += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${fill}" />`;
   }
   return out;
 }
 
+// Midnight-conservatory palette: warm ink, cream dots, brass-gold tonic & wave.
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">
   <defs>
-    <radialGradient id="bg" cx="35%" cy="30%" r="85%">
-      <stop offset="0%" stop-color="#8b5cf6" />
-      <stop offset="55%" stop-color="#7c3aed" />
-      <stop offset="100%" stop-color="#4c1d95" />
+    <radialGradient id="bg" cx="38%" cy="28%" r="90%">
+      <stop offset="0%" stop-color="#3a3125" />
+      <stop offset="55%" stop-color="#241f17" />
+      <stop offset="100%" stop-color="#15110c" />
     </radialGradient>
   </defs>
   <rect width="${SIZE}" height="${SIZE}" fill="url(#bg)" />
-  <circle cx="${CENTER}" cy="${CENTER}" r="${RING_RADIUS}" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="6" />
+  <circle cx="${CENTER}" cy="${CENTER}" r="${RING_RADIUS}" fill="none" stroke="rgba(240,229,205,0.3)" stroke-width="6" />
   ${dots()}
   <path d="M 168 ${CENTER} q 22 -54 44 0 t 44 0 t 44 0"
-        fill="none" stroke="#ffffff" stroke-width="16" stroke-linecap="round" />
+        fill="none" stroke="#d9a83f" stroke-width="16" stroke-linecap="round" />
 </svg>`;
 
 const targets = [

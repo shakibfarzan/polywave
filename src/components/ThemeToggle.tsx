@@ -1,21 +1,22 @@
 import { Moon, Sun } from "lucide-react";
 
 import { usePolywaveStore } from "@/lib/store";
-import { Switch } from "@/components/ui/switch";
+import { useT } from "@/hooks/useT";
+import { Button } from "@/components/ui/button";
 
 export function ThemeToggle() {
+  const { t } = useT();
   const theme = usePolywaveStore((s) => s.theme);
   const toggleTheme = usePolywaveStore((s) => s.toggleTheme);
 
   return (
-    <div className="flex items-center gap-2">
-      <Sun className="size-4 text-muted-foreground" />
-      <Switch
-        checked={theme === "dark"}
-        onCheckedChange={toggleTheme}
-        aria-label="Toggle dark mode"
-      />
-      <Moon className="size-4 text-muted-foreground" />
-    </div>
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggleTheme}
+      aria-label={t("header.theme")}
+    >
+      {theme === "dark" ? <Sun /> : <Moon />}
+    </Button>
   );
 }

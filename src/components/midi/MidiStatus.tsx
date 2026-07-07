@@ -3,10 +3,14 @@ import { useShallow } from "zustand/react/shallow";
 
 import { usePolywaveStore } from "@/lib/store";
 import { midiNoteName } from "@/lib/theory";
+import type { TranslationKey } from "@/lib/i18n";
+import { useT } from "@/hooks/useT";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 export function MidiStatus() {
+  const i18n = useT();
+  const { t } = i18n;
   const {
     midiStatus,
     midiDevices,
@@ -30,15 +34,15 @@ export function MidiStatus() {
   if (midiStatus === "unsupported") {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <CircleOff className="size-4" />
-        Web MIDI isn't supported in this browser (try Chrome or Edge).
+        <CircleOff className="size-4 shrink-0" />
+        {t("midi.unsupported")}
       </div>
     );
   }
 
   if (midiStatus !== "connected") {
     return (
-      <div className="flex flex-col items-center gap-2">
+      <div className="flex flex-col gap-2">
         <Button
           variant="outline"
           size="sm"
@@ -46,64 +50,63 @@ export function MidiStatus() {
           disabled={midiStatus === "connecting"}
         >
           <Piano />
-          {midiStatus === "connecting"
-            ? "Connecting…"
-            : "Connect a MIDI keyboard"}
+          {midiStatus === "connecting" ? t("midi.connecting") : t("midi.connect")}
         </Button>
         {midiStatus === "error" && (
-          <p className="text-sm text-destructive">
-            MIDI access failed — check the browser permission and try again.
-          </p>
+          <p className="text-sm text-destructive">{t("midi.error")}</p>
         )}
       </div>
     );
   }
 
   return (
-    <div className="flex w-full max-w-lg flex-col items-center gap-2 rounded-lg border bg-card p-3">
-      <div className="flex flex-wrap items-center justify-center gap-2">
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Badge variant="secondary">
           <Piano className="size-3" />
-          {midiDevices.length > 0
-            ? midiDevices.join(", ")
-            : "No device — plug one in"}
+          {midiDevices.length > 0 ? midiDevices.join(", ") : t("midi.noDevice")}
         </Badge>
         <Button
           variant="ghost"
           size="sm"
           onClick={disconnectMidiInput}
-          aria-label="Disconnect MIDI"
+          aria-label={t("midi.disconnectAria")}
         >
           <Unplug />
-          Disconnect
+          {t("midi.disconnect")}
         </Button>
       </div>
 
-      <div className="flex min-h-6 flex-wrap items-center justify-center gap-1.5">
+      <div className="flex min-h-6 flex-wrap items-center gap-1.5" dir="ltr">
         {midiNotes.length === 0 ? (
-          <span className="text-sm text-muted-foreground">
-            Play some notes — held chords light up matching keys on the circle.
+          <span className="text-sm text-muted-foreground" dir="auto">
+            {t("midi.hint")}
           </span>
         ) : (
           <>
-            {midiNotes.map((n) => (
-              <Badge key={n} variant="outline">
-                {midiNoteName(n)}
+            {midiNotes.map((note) => (
+              <Badge key={note} variant="outline">
+                {midiNoteName(note)}
               </Badge>
             ))}
             {detectedChord && (
-              <Badge className="ml-1">{detectedChord.symbol}</Badge>
+              <Badge className="ms-1">{detectedChord.symbol}</Badge>
             )}
           </>
         )}
       </div>
 
       {detectedChord && chordMatches.length > 0 && (
-        <p className="text-center text-sm text-muted-foreground">
-          {detectedChord.symbol} ({detectedChord.quality}) is diatonic in{" "}
-          {chordMatches
-            .map((m) => `${m.tonic} major (${m.roman})`)
-            .join(", ")}
+        <p className="text-sm text-muted-foreground">
+          {t("midi.diatonicIn", {
+            chord: detectedChord.symbol,
+            quality: t(`quality.${detectedChord.quality}` as TranslationKey),
+            list: i18n.join(
+              chordMatches.map((m) =>
+                t("midi.matchItem", { tonic: m.tonic, roman: m.roman }),
+              ),
+            ),
+          })}
         </p>
       )}
     </div>

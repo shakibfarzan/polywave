@@ -1,12 +1,14 @@
 import { useShallow } from "zustand/react/shallow";
 
 import { usePolywaveStore } from "@/lib/store";
+import { useT } from "@/hooks/useT";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const BEATS = [0, 1, 2, 3];
 
 export function Metronome() {
+  const { t } = useT();
   const { metronomeOn, metronomeBeat, toggleMetronome } = usePolywaveStore(
     useShallow((s) => ({
       metronomeOn: s.metronomeOn,
@@ -16,7 +18,7 @@ export function Metronome() {
   );
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex items-center gap-3">
       <div className="flex items-center gap-2" aria-hidden="true">
         {BEATS.map((b) => (
           <span
@@ -38,7 +40,7 @@ export function Metronome() {
         onClick={() => void toggleMetronome()}
         aria-pressed={metronomeOn}
       >
-        {metronomeOn ? "Stop metronome" : "Start metronome"}
+        {metronomeOn ? t("metronome.stop") : t("metronome.start")}
       </Button>
     </div>
   );

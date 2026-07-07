@@ -2,8 +2,10 @@ import { Settings } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
 import { usePolywaveStore } from "@/lib/store";
-import { INSTRUMENT_LABELS, type InstrumentId } from "@/lib/audio";
+import type { InstrumentId } from "@/lib/audio";
 import type { NotationPref } from "@/lib/theory";
+import type { Locale, TranslationKey } from "@/lib/i18n";
+import { useT } from "@/hooks/useT";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -16,78 +18,109 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
-const INSTRUMENTS = Object.keys(INSTRUMENT_LABELS) as InstrumentId[];
+const INSTRUMENTS: InstrumentId[] = ["classic", "soft", "bright", "retro", "epiano"];
 
 export function SettingsPanel() {
-  const { theme, notation, instrument, toggleTheme, setNotation, setInstrument } =
-    usePolywaveStore(
-      useShallow((s) => ({
-        theme: s.theme,
-        notation: s.notation,
-        instrument: s.instrument,
-        toggleTheme: s.toggleTheme,
-        setNotation: s.setNotation,
-        setInstrument: s.setInstrument,
-      })),
-    );
+  const i18n = useT();
+  const { t } = i18n;
+  const {
+    theme,
+    notation,
+    instrument,
+    locale,
+    toggleTheme,
+    setNotation,
+    setInstrument,
+    setLocale,
+  } = usePolywaveStore(
+    useShallow((s) => ({
+      theme: s.theme,
+      notation: s.notation,
+      instrument: s.instrument,
+      locale: s.locale,
+      toggleTheme: s.toggleTheme,
+      setNotation: s.setNotation,
+      setInstrument: s.setInstrument,
+      setLocale: s.setLocale,
+    })),
+  );
 
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Open settings">
+        <Button variant="ghost" size="icon" aria-label={t("header.settings")}>
           <Settings />
         </Button>
       </SheetTrigger>
-      <SheetContent>
+      <SheetContent side={i18n.isRtl ? "left" : "right"}>
         <SheetHeader>
-          <SheetTitle>Settings</SheetTitle>
-          <SheetDescription>
-            Preferences are saved on this device.
-          </SheetDescription>
+          <SheetTitle className="font-display text-xl">
+            {t("settings.title")}
+          </SheetTitle>
+          <SheetDescription>{t("settings.note")}</SheetDescription>
         </SheetHeader>
 
-        <div className="flex flex-col gap-6 px-4">
-          <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-6 overflow-y-auto px-4 pb-4">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium">Dark mode</p>
+              <p className="text-sm font-medium">{t("settings.dark")}</p>
               <p className="text-xs text-muted-foreground">
-                Follow the switch, not the sun.
+                {t("settings.darkHint")}
               </p>
             </div>
             <Switch
               checked={theme === "dark"}
               onCheckedChange={toggleTheme}
-              aria-label="Toggle dark mode"
+              aria-label={t("settings.dark")}
             />
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium">Accidental notation</p>
+            <p className="text-sm font-medium">{t("settings.language")}</p>
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              value={locale}
+              onValueChange={(v) => v && setLocale(v as Locale)}
+              aria-label={t("settings.language")}
+            >
+              <ToggleGroupItem value="en">English</ToggleGroupItem>
+              <ToggleGroupItem value="fa">فارسی</ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium">{t("settings.notation")}</p>
             <p className="text-xs text-muted-foreground">
-              How out-of-key notes are written (in-key spelling always follows
-              the key).
+              {t("settings.notationHint")}
             </p>
             <ToggleGroup
               type="single"
               variant="outline"
               value={notation}
               onValueChange={(v) => v && setNotation(v as NotationPref)}
-              aria-label="Accidental notation"
+              aria-label={t("settings.notation")}
             >
-              <ToggleGroupItem value="auto">Both</ToggleGroupItem>
-              <ToggleGroupItem value="sharps">♯ Sharps</ToggleGroupItem>
-              <ToggleGroupItem value="flats">♭ Flats</ToggleGroupItem>
+              <ToggleGroupItem value="auto">
+                {t("settings.notationBoth")}
+              </ToggleGroupItem>
+              <ToggleGroupItem value="sharps">
+                {t("settings.notationSharps")}
+              </ToggleGroupItem>
+              <ToggleGroupItem value="flats">
+                {t("settings.notationFlats")}
+              </ToggleGroupItem>
             </ToggleGroup>
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium">Instrument</p>
+            <p className="text-sm font-medium">{t("settings.instrument")}</p>
             <ToggleGroup
               type="single"
               variant="outline"
               value={instrument}
               onValueChange={(v) => v && setInstrument(v as InstrumentId)}
-              aria-label="Instrument"
+              aria-label={t("settings.instrument")}
               className="grid w-full grid-cols-1"
             >
               {INSTRUMENTS.map((id) => (
@@ -96,7 +129,7 @@ export function SettingsPanel() {
                   value={id}
                   className="justify-start rounded-md border first:rounded-md last:rounded-md"
                 >
-                  {INSTRUMENT_LABELS[id]}
+                  {t(`instrument.${id}` as TranslationKey)}
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>

@@ -1,17 +1,18 @@
 import { Repeat } from "lucide-react";
 
 import { usePolywaveStore } from "@/lib/store";
-import { relativeLabel } from "@/lib/theory";
+import { useT } from "@/hooks/useT";
 import { Button } from "@/components/ui/button";
 
 export function RelativeSwitch() {
+  const { t } = useT();
   const mode = usePolywaveStore((s) => s.keyInfo.mode);
   const switchRelative = usePolywaveStore((s) => s.switchRelative);
 
   return (
-    <Button variant="secondary" onClick={switchRelative}>
+    <Button variant="secondary" size="sm" onClick={switchRelative}>
       <Repeat />
-      {relativeLabel(mode)}
+      {mode === "ionian" ? t("key.relativeMinor") : t("key.relativeMajor")}
     </Button>
   );
 }

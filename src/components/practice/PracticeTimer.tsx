@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw } from "lucide-react";
 
 import { usePolywaveStore } from "@/lib/store";
+import { useT } from "@/hooks/useT";
 import { Button } from "@/components/ui/button";
 
 export function PracticeTimer() {
+  const { t, digits } = useT();
   const addPracticeTime = usePolywaveStore((s) => s.addPracticeTime);
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
@@ -44,9 +46,10 @@ export function PracticeTimer() {
       <span
         className="font-mono text-2xl tabular-nums"
         role="timer"
-        aria-label="Practice time"
+        aria-label={t("timer.aria")}
+        dir="ltr"
       >
-        {mm}:{ss}
+        {digits(`${mm}:${ss}`)}
       </span>
       <Button
         size="icon"
@@ -55,7 +58,7 @@ export function PracticeTimer() {
           if (running) flush();
           setRunning((r) => !r);
         }}
-        aria-label={running ? "Pause timer" : "Start timer"}
+        aria-label={running ? t("timer.pause") : t("timer.start")}
       >
         {running ? <Pause /> : <Play />}
       </Button>
@@ -68,7 +71,7 @@ export function PracticeTimer() {
           setSeconds(0);
           flushedRef.current = 0;
         }}
-        aria-label="Reset timer"
+        aria-label={t("timer.reset")}
       >
         <RotateCcw />
       </Button>

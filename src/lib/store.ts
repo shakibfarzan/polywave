@@ -28,6 +28,7 @@ import {
   recordQuizAnswer,
   type PracticeStats,
 } from "./stats";
+import type { Locale } from "./i18n";
 import {
   connectMidi as midiConnect,
   disconnectMidi as midiDisconnect,
@@ -68,13 +69,22 @@ export interface ProgressionStep {
   circleIndex: number;
 }
 
+/** Structured (language-neutral) quiz data — components render the labels. */
+export type QuizOption =
+  | { kind: "key"; tonic: string; mode: Mode }
+  | { kind: "count"; count: number; acc: "sharps" | "flats" | "none" };
+
+export type QuizPrompt =
+  | { kind: "sig"; count: number; acc: "sharps" | "flats" | "none" }
+  | { kind: "key"; tonic: string; mode: Mode };
+
 interface QuizSession {
   active: boolean;
   type: QuizType;
-  prompt: string;
-  options: string[];
-  correct: string;
-  selected: string | null;
+  prompt: QuizPrompt;
+  options: QuizOption[];
+  correctIndex: number;
+  selectedIndex: number | null;
   score: number;
   total: number;
   streak: number;
@@ -117,6 +127,7 @@ interface PolywaveState {
   theme: Theme;
   notation: NotationPref;
   instrument: InstrumentId;
+  locale: Locale;
 
   // Quiz
   quiz: QuizSession;
@@ -152,10 +163,11 @@ interface PolywaveState {
   toggleTheme: () => void;
   setNotation: (notation: NotationPref) => void;
   setInstrument: (instrument: InstrumentId) => void;
+  setLocale: (locale: Locale) => void;
   addPracticeTime: (seconds: number) => void;
   resetStats: () => void;
   startQuiz: (type?: QuizType) => void;
-  answerQuiz: (choice: string) => void;
+  answerQuiz: (index: number) => void;
   nextQuestion: () => void;
   endQuiz: () => void;
   recomputeKeyInfo: () => void;
@@ -182,6 +194,17 @@ function getInitialTheme(): Theme {
     : "light";
 }
 
+function applyLocale(locale: Locale): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.lang = locale;
+  document.documentElement.dir = locale === "fa" ? "rtl" : "ltr";
+}
+
+function getInitialLocale(): Locale {
+  if (typeof navigator === "undefined") return "en";
+  return navigator.language?.toLowerCase().startsWith("fa") ? "fa" : "en";
+}
+
 // --- Quiz helpers -----------------------------------------------------------
 
 function shuffle<T>(arr: T[]): T[] {
@@ -197,21 +220,7 @@ function sample<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function signatureShortLabel(sig: KeySignature): string {
-  const count = signatureCount(sig);
-  if (count === 0) return "None";
-  const type = "sharps" in sig ? "sharp" : "flat";
-  return `${count} ${type}${count > 1 ? "s" : ""}`;
-}
-
-const ALL_SIGNATURE_LABELS = [
-  "None",
-  ...[1, 2, 3, 4, 5, 6, 7].map((n) => `${n} sharp${n > 1 ? "s" : ""}`),
-  ...[1, 2, 3, 4, 5, 6, 7].map((n) => `${n} flat${n > 1 ? "s" : ""}`),
-];
-
 interface PoolKey {
-  label: string;
   tonic: string;
   mode: Mode;
   sig: KeySignature;
@@ -220,46 +229,88 @@ interface PoolKey {
 function buildPool(mode: Mode): PoolKey[] {
   return practicalKeys(mode).map((k) => {
     const info = getKeyInfo(k.tonic, k.mode);
-    return { label: k.label, tonic: k.tonic, mode: k.mode, sig: info.signature };
+    return { tonic: k.tonic, mode: k.mode, sig: info.signature };
   });
 }
 
-function makeQuestion(type: QuizType): Omit<QuizSession, "score" | "total" | "streak" | "active"> {
+function sigDescriptor(sig: KeySignature): {
+  count: number;
+  acc: "sharps" | "flats" | "none";
+} {
+  const count = signatureCount(sig);
+  if (count === 0) return { count: 0, acc: "none" };
+  return { count, acc: "sharps" in sig ? "sharps" : "flats" };
+}
+
+function sameSig(a: KeySignature, b: KeySignature): boolean {
+  const da = sigDescriptor(a);
+  const db = sigDescriptor(b);
+  return da.count === db.count && da.acc === db.acc;
+}
+
+const ALL_COUNT_OPTIONS: QuizOption[] = [
+  { kind: "count", count: 0, acc: "none" },
+  ...[1, 2, 3, 4, 5, 6, 7].map(
+    (n): QuizOption => ({ kind: "count", count: n, acc: "sharps" }),
+  ),
+  ...[1, 2, 3, 4, 5, 6, 7].map(
+    (n): QuizOption => ({ kind: "count", count: n, acc: "flats" }),
+  ),
+];
+
+function makeQuestion(
+  type: QuizType,
+): Pick<QuizSession, "type" | "prompt" | "options" | "correctIndex" | "selectedIndex"> {
   const majors = buildPool("ionian");
 
   if (type === "sigToKey") {
     const correct = sample(majors);
     const distractors = shuffle(
-      majors.filter(
-        (k) =>
-          k.label !== correct.label &&
-          signatureShortLabel(k.sig) !== signatureShortLabel(correct.sig),
-      ),
+      majors.filter((k) => k.tonic !== correct.tonic && !sameSig(k.sig, correct.sig)),
     ).slice(0, 3);
-    const options = shuffle([correct, ...distractors]).map((k) => k.label);
+    const options: QuizOption[] = shuffle([correct, ...distractors]).map((k) => ({
+      kind: "key",
+      tonic: k.tonic,
+      mode: k.mode,
+    }));
+    const { count, acc } = sigDescriptor(correct.sig);
     return {
       type,
-      prompt: `Which major key has ${signatureShortLabel(correct.sig)}?`,
+      prompt: { kind: "sig", count, acc },
       options,
-      correct: correct.label,
-      selected: null,
+      correctIndex: options.findIndex(
+        (o) => o.kind === "key" && o.tonic === correct.tonic,
+      ),
+      selectedIndex: null,
     };
   }
 
   // keyToCount — use majors and minors for variety.
   const pool = [...majors, ...buildPool("aeolian")];
   const correct = sample(pool);
-  const correctLabel = signatureShortLabel(correct.sig);
+  const correctDesc = sigDescriptor(correct.sig);
   const distractors = shuffle(
-    ALL_SIGNATURE_LABELS.filter((l) => l !== correctLabel),
+    ALL_COUNT_OPTIONS.filter(
+      (o) =>
+        o.kind === "count" &&
+        !(o.count === correctDesc.count && o.acc === correctDesc.acc),
+    ),
   ).slice(0, 3);
-  const options = shuffle([correctLabel, ...distractors]);
+  const options = shuffle<QuizOption>([
+    { kind: "count", ...correctDesc },
+    ...distractors,
+  ]);
   return {
     type,
-    prompt: `How many sharps or flats does ${correct.label} have?`,
+    prompt: { kind: "key", tonic: correct.tonic, mode: correct.mode },
     options,
-    correct: correctLabel,
-    selected: null,
+    correctIndex: options.findIndex(
+      (o) =>
+        o.kind === "count" &&
+        o.count === correctDesc.count &&
+        o.acc === correctDesc.acc,
+    ),
+    selectedIndex: null,
   };
 }
 
@@ -300,16 +351,17 @@ export const usePolywaveStore = create<PolywaveState>()(
       theme: getInitialTheme(),
       notation: "auto",
       instrument: "classic",
+      locale: getInitialLocale(),
 
       stats: emptyStats(),
 
       quiz: {
         active: false,
         type: "sigToKey",
-        prompt: "",
+        prompt: { kind: "sig", count: 0, acc: "none" },
         options: [],
-        correct: "",
-        selected: null,
+        correctIndex: 0,
+        selectedIndex: null,
         score: 0,
         total: 0,
         streak: 0,
@@ -485,6 +537,11 @@ export const usePolywaveStore = create<PolywaveState>()(
 
       setNotation: (notation) => set({ notation }),
 
+      setLocale: (locale) => {
+        applyLocale(locale);
+        set({ locale });
+      },
+
       setInstrument: (instrument) => {
         audioSetInstrument(instrument);
         set({ instrument });
@@ -509,15 +566,15 @@ export const usePolywaveStore = create<PolywaveState>()(
         });
       },
 
-      answerQuiz: (choice) => {
+      answerQuiz: (index) => {
         const { quiz, bestStreak, stats } = get();
-        if (quiz.selected !== null) return; // already answered
-        const correct = choice === quiz.correct;
+        if (quiz.selectedIndex !== null) return; // already answered
+        const correct = index === quiz.correctIndex;
         const streak = correct ? quiz.streak + 1 : 0;
         set({
           quiz: {
             ...quiz,
-            selected: choice,
+            selectedIndex: index,
             score: quiz.score + (correct ? 1 : 0),
             total: quiz.total + 1,
             streak,
@@ -553,12 +610,14 @@ export const usePolywaveStore = create<PolywaveState>()(
         theme: s.theme,
         notation: s.notation,
         instrument: s.instrument,
+        locale: s.locale,
         bestStreak: s.bestStreak,
         stats: s.stats,
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
         applyTheme(state.theme);
+        applyLocale(state.locale);
         audioSetInstrument(state.instrument);
         state.recomputeKeyInfo();
       },

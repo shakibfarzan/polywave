@@ -2,11 +2,13 @@ import { Download, Play, Plus, Square, Trash2, X } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
 import { usePolywaveStore } from "@/lib/store";
+import { useT } from "@/hooks/useT";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function ProgressionBuilder() {
+  const { t } = useT();
   const {
     progression,
     progressionMode,
@@ -35,8 +37,8 @@ export function ProgressionBuilder() {
   const empty = progression.length === 0;
 
   return (
-    <div className="w-full max-w-lg space-y-3">
-      <div className="flex flex-wrap items-center justify-center gap-2">
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           variant={progressionMode ? "default" : "outline"}
           size="sm"
@@ -44,22 +46,23 @@ export function ProgressionBuilder() {
           aria-pressed={progressionMode}
         >
           <Plus />
-          {progressionMode ? "Recording…" : "Add steps"}
+          {progressionMode ? t("prog.recording") : t("prog.add")}
         </Button>
         <Button
           size="sm"
+          variant="secondary"
           onClick={() => (isPlaying ? stopProgression() : void playProgression())}
           disabled={empty}
         >
           {isPlaying ? (
             <>
               <Square />
-              Stop
+              {t("prog.stop")}
             </>
           ) : (
             <>
               <Play />
-              Play
+              {t("prog.play")}
             </>
           )}
         </Button>
@@ -68,31 +71,24 @@ export function ProgressionBuilder() {
           size="sm"
           onClick={exportProgressionMidi}
           disabled={empty}
-          aria-label="Export progression as a MIDI file"
+          aria-label={t("prog.exportAria")}
         >
           <Download />
-          MIDI
+          {t("prog.midi")}
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={clearProgression}
-          disabled={empty}
-        >
+        <Button variant="ghost" size="sm" onClick={clearProgression} disabled={empty}>
           <Trash2 />
-          Clear
+          {t("prog.clear")}
         </Button>
       </div>
 
-      <p className="text-center text-sm text-muted-foreground">
-        {progressionMode
-          ? "Tap notes or chord-wheel chords on the circle to add them."
-          : "Turn on “Add steps”, then tap the circle to build a progression."}
+      <p className="text-sm text-muted-foreground">
+        {progressionMode ? t("prog.hintOn") : t("prog.hintOff")}
       </p>
 
-      <div className="flex min-h-9 flex-wrap items-center justify-center gap-2">
+      <div className="flex min-h-9 flex-wrap items-center gap-2" dir="ltr">
         {empty ? (
-          <span className="text-sm text-muted-foreground">No steps yet.</span>
+          <span className="text-sm text-muted-foreground">{t("prog.empty")}</span>
         ) : (
           progression.map((step, i) => (
             <Badge
@@ -103,7 +99,7 @@ export function ProgressionBuilder() {
               <button
                 type="button"
                 onClick={() => removeProgressionStep(step.id)}
-                aria-label={`Remove ${step.label}`}
+                aria-label={t("prog.remove", { label: step.label })}
                 className={cn(
                   "cursor-pointer gap-1 py-1 text-sm",
                   progressionPlayingIndex === i &&

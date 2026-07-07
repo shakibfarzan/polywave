@@ -54,6 +54,13 @@ scored key-signature quiz.
 
 **Throughout**
 
+- **Bilingual** — full English and Persian (فارسی) UI with proper RTL layout,
+  Persian digits, and the Vazirmatn typeface; switch from the header or
+  settings, persisted. All ARIA labels are translated too.
+- **"Midnight conservatory" design language** — warm ink & cream palette with
+  a brass-gold tonic and vermilion playing accents; Fraunces display serif +
+  Alegreya Sans; staff-line texture background. All fonts bundled locally so
+  offline still works.
 - **Dark / light mode**, persisted. Fully keyboard-navigable and ARIA-labelled.
 - **PWA** — installable, works fully offline after first load.
 
@@ -61,6 +68,10 @@ scored key-signature quiz.
 
 Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui (Radix) · Zustand
 (persisted) · Tone.js (lazy-loaded) · vite-plugin-pwa · lucide-react.
+
+i18n is a hand-rolled typed dictionary (`src/lib/i18n.ts`, ~140 keys ×
+en/fa) — the `fa` dictionary is compile-time checked for completeness. RTL is
+driven by `dir` on `<html>` plus Radix's `DirectionProvider`.
 
 ## The theory engine
 
